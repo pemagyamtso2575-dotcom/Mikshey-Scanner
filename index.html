@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mikshey Eyewear Scanner OTP</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body{font-family:Inter,sans-serif;margin:0;background:#0f0f0f;color:#fff}
+.app{max-width:420px;margin:auto;padding:18px}
+.btn{width:100%;padding:14px;border:none;border-radius:30px;background:#25D366;color:#fff;font-size:15px;cursor:pointer;margin-top:10px}
+.input{width:100%;padding:12px;border-radius:10px;border:none;margin-bottom:10px}
+.small{font-size:12px;color:#aaa}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+</head>
+
+<body>
+<div class="app">
+<h2>🕶 Mikshey Eyewear Face Scanner</h2>
+<p class="small">Enter phone → Verify OTP → Scan</p>
+
+<!-- PHONE STEP -->
+<div id="phoneStep">
+  <input class="input" id="name" placeholder="Enter your name">
+  <input class="input" id="phone" placeholder="Enter phone number">
+  <div id="recaptcha-container"></div>
+  <button class="btn" onclick="sendOTP()">Send OTP</button>
+</div>
+
+<!-- OTP STEP -->
+<div id="otpStep" style="display:none">
+  <input class="input" id="otp" placeholder="Enter OTP">
+  <button class="btn" onclick="verifyOTP()">Verify OTP</button>
+</div>
+
+<!-- CAMERA STEP -->
+<div id="cameraStep" style="display:none">
+  <video id="video" autoplay style="width:100%;border-radius:12px"></video>
+</div>
+
+</div>
+
+<script>
+// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+    apiKey: "AIzaSyAl0SFSRlzCoiZJuLOzoUZ7hMYsIM57510",
+    authDomain: "looper123.firebaseapp.com",
+    projectId: "looper123",
+    storageBucket: "looper123.firebasestorage.app",
+    messagingSenderId: "1021872436504",
+    appId: "1:1021872436504:web:80b7632da6c79bcb6cda6d",
+    measurementId: "G-ZX0WVV2S2N"
+  };
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+let confirmationResult;
+let state = {};
+
+function sendOTP(){
+  const name = document.getElementById('name').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+
+  if(!name || !phone){
+    alert("Enter details"); return;
+  }
+
+  const phoneRegex = /^[6-9][0-9]{9}$/;
+  if(!phoneRegex.test(phone)){
+    alert("Enter valid 10-digit number"); return;
+  }
+
+  state.name = name;
+  state.phone = phone;
+
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container');
+
+  auth.signInWithPhoneNumber("+91" + phone, window.recaptchaVerifier)
+  .then(result => {
+    confirmationResult = result;
+    alert("OTP sent");
+    document.getElementById('phoneStep').style.display='none';
+    document.getElementById('otpStep').style.display='block';
+  })
+  .catch(err => alert(err.message));
+}
+
+function verifyOTP(){
+  const otp = document.getElementById('otp').value;
+
+  confirmationResult.confirm(otp)
+  .then(() => {
+    alert("Verified ✅");
+
+    // send to Google Sheets
+    fetch("https://script.google.com/macros/s/AKfycbzzmgD55l89VROAscDc7_20O9L3VXEFrxekoyUNBS0R0dofxKzpxeNmutJU2n8VhrV_HA/exec", {
+      method: "POST",
+      mode: "no-cors",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        name: state.name,
+        phone: state.phone,
+        time: new Date().toISOString()
+      })
+    });
+
+    document.getElementById('otpStep').style.display='none';
+    document.getElementById('cameraStep').style.display='block';
+
+    navigator.mediaDevices.getUserMedia({video:true})
+    .then(stream=>{
+      document.getElementById('video').srcObject = stream;
+    });
+
+  })
+  .catch(()=> alert("Invalid OTP"));
+}
+</script>
+
+</body>
+</html>
